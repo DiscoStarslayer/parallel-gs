@@ -456,6 +456,13 @@ bool GSRenderer::can_potentially_super_sample() const
 
 void GSRenderer::kick_compilation_tasks()
 {
+	const char *env = getenv("PGS_SKIP_COMPILATION_TASKS");
+	if (env && strcmp(env, "1") == 0)
+	{
+		LOGI("Skipping precompilation of shaders. May stutter way more.\n");
+		return;
+	}
+
 	// Pre-prime all potential shader variants early.
 	std::vector<Vulkan::DeferredPipelineCompile> tasks;
 	compilation_tasks_active = true;
@@ -3513,6 +3520,12 @@ void GSRenderer::upload_texture(const TextureUpload &upload)
 		cmd.set_storage_buffer(0, 0, *buffers.gpu);
 	cmd.set_storage_buffer(0, BINDING_CLUT, *buffers.clut);
 
+	if (upload.desc.samples > 1 && scratch.buffer)
+	{
+		LOGE("CPU scratch upload with super-sampling should never happen ...\n");
+		return;
+	}
+
 	if (upload.indirection.buffer)
 		cmd.set_storage_buffer(0, 2, *upload.indirection.buffer, upload.indirection.offset, upload.indirection.size);
 	else
@@ -4327,7 +4340,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		if (priv.smode1.CMOD == SMODE1Bits::CMOD_PROGRESSIVE)
 			insert_label(cmd, "Progressive scan", info.phase);
 	}
-	else if (priv.smode1.CMOD == SMODE1Bits::CMOD_PROGRESSIVE && priv.smode1.LC == SMODE1Bits::LC_VESA_640x480)
+	else if (priv.smode1.CMOD == SMODE1Bits::CMOD_PROGRESSIVE && priv.smode1.LC == SMODE1Bits::LC_VGA)
 	{
 		if (overscan)
 		{
@@ -4345,7 +4358,7 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		}
 
 		clock_divider = SMODE1Bits::CLOCK_DIVIDER_COMPONENT;
-		insert_label(cmd, "VESA 640x480p");
+		insert_label(cmd, "VGA 640x480");
 	}
 	else if (priv.smode1.CMOD == SMODE1Bits::CMOD_PAL && priv.smode1.LC == SMODE1Bits::LC_ANALOG)
 	{
@@ -4410,6 +4423,16 @@ ScanoutResult GSRenderer::vsync(const PrivRegisterState &priv, const VSyncInfo &
 		high_resolution_scanout = false;
 		field_aware_rendering = false;
 		super_samples = 1;
+	}
+	else if (priv.smode1.LC == SMODE1Bits::LC_UNKNOWN_29)
+	{
+		// A random dump used this and I have no idea ...
+		mode_width = 640;
+		mode_height = 480;
+		scan_offset_x = 318;
+		scan_offset_y = 50;
+		insert_label(cmd, "Weird undocumented 640x480");
+		clock_divider = SMODE1Bits::CLOCK_DIVIDER_COMPOSITE;
 	}
 	else
 	{
