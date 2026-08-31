@@ -27,8 +27,8 @@ Subject: [PATCH 1/4] Early integration of parallel-GS.
  .../GS/Renderers/parallel-gs/GSRendererPGS.h  |  88 ++
  pcsx2/ImGui/ImGuiFullscreen.cpp               |   2 +
  pcsx2/Pcsx2Config.cpp                         |  17 +-
- pcsx2/pcsx2.vcxproj                           |  59 +-
- 24 files changed, 1653 insertions(+), 89 deletions(-)
+ pcsx2/pcsx2.vcxproj                           |  60 +-
+ 24 files changed, 1654 insertions(+), 89 deletions(-)
  create mode 100644 pcsx2-qt/Settings/GraphicsPGSRenderingSettingsTab.ui
  create mode 100644 pcsx2/GS/Renderers/Vulkan/VKLoaderPlatformDefines.h
  create mode 100644 pcsx2/GS/Renderers/parallel-gs/GSRendererPGS.cpp
@@ -2344,7 +2344,7 @@ index 6dba18bbc..bb4dff330 100644
  	SettingsWrapBitBoolEx(Mipmap, "mipmap");
  	SettingsWrapBitBoolEx(ManualUserHacks, "UserHacks");
 diff --git a/pcsx2/pcsx2.vcxproj b/pcsx2/pcsx2.vcxproj
-index 5dcf68fcc..d60e23d1d 100644
+index 5dcf68fcc..a5145bfbe 100644
 --- a/pcsx2/pcsx2.vcxproj
 +++ b/pcsx2/pcsx2.vcxproj
 @@ -54,6 +54,16 @@
@@ -2373,7 +2373,7 @@ index 5dcf68fcc..d60e23d1d 100644
        <PreprocessorDefinitions Condition="'$(Platform)'!='ARM64'">ENABLE_RAINTEGRATION;ENABLE_OPENGL;ENABLE_VULKAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
        <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">XBYAK_NO_EXCEPTION;ZYCORE_STATIC_BUILD;ZYDIS_STATIC_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
        <PreprocessorDefinitions Condition="'$(Platform)'=='ARM64'">VIXL_INCLUDE_TARGET_AARCH64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-@@ -263,6 +273,53 @@
+@@ -263,6 +273,54 @@
      <ClCompile Include="Gif_Logger.cpp" />
      <ClCompile Include="Gif_Unit.cpp" />
      <ClCompile Include="GSDumpReplayer.cpp" />
@@ -2407,6 +2407,7 @@ index 5dcf68fcc..d60e23d1d 100644
 +    <ClCompile Include="GS\parallel-gs\Granite\vulkan\semaphore_manager.cpp" />
 +    <ClCompile Include="GS\parallel-gs\Granite\vulkan\shader.cpp" />
 +    <ClCompile Include="GS\parallel-gs\Granite\vulkan\wsi.cpp" />
++    <ClCompile Include="GS\parallel-gs\Granite\vulkan\wsi_pacer.cpp" />
 +    <ClCompile Include="GS\parallel-gs\Granite\vulkan\pipeline_cache.cpp" />
 +    <ClCompile Include="GS\parallel-gs\Granite\vulkan\rtas.cpp" />
 +    <ClCompile Include="GS\parallel-gs\Granite\vulkan\texture\memory_mapped_texture.cpp" />
@@ -2429,4 +2430,3 @@ index 5dcf68fcc..d60e23d1d 100644
      <ClCompile Include="GS\Renderers\DX12\GSTexture12.cpp" />
 -- 
 2.55.0
-
