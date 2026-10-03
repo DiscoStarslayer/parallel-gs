@@ -31,21 +31,9 @@ struct TextureAnalysis
     uint reserved;
     uvec2 size_minus_1;
     u16vec2 base;
-    // HACK: Blackwell windows drivers optimizes the values in a way that cause unaligned reads later
-    // combined to a single uint to workaround
     uint block_stride_layers;
     uint flags;
 };
-
-uint analysis_block_stride(TextureAnalysis analysis)
-{
-    return analysis.block_stride_layers & 0xffffu;
-}
-
-uint analysis_layers(TextureAnalysis analysis)
-{
-    return analysis.block_stride_layers >> 16u;
-}
 
 layout(set = 1, binding = 0, std140) uniform AnalysisBuffer
 {
@@ -224,6 +212,16 @@ shared uint shared_tex_index[256];
 shared ivec2 shared_tex_lo[256];
 shared ivec2 shared_tex_hi[256];
 
+uint lo_word(uint word)
+{
+    return bitfieldExtract(word, 0, 16);
+}
+
+uint hi_word(uint word)
+{
+    return bitfieldExtract(word, 16, 16);
+}
+
 void main()
 {
     TextureAnalysis analysis;
@@ -266,7 +264,7 @@ void main()
                         allocate_block(
                             analysis.indirect_dispatch_offset, analysis.indirect_workgroups_offset,
                             analysis.indirect_bitmask_offset,
-                            block, analysis_block_stride(analysis), analysis_layers(analysis));
+                            block, lo_word(analysis.block_stride_layers), hi_word(analysis.block_stride_layers));
                     }
                 }
             }
@@ -307,7 +305,7 @@ void main()
                 allocate_block(
                     analysis.indirect_dispatch_offset, analysis.indirect_workgroups_offset,
                     analysis.indirect_bitmask_offset,
-                    block, analysis_block_stride(analysis), analysis_layers(analysis));
+                    block, lo_word(analysis.block_stride_layers), hi_word(analysis.block_stride_layers));
             }
         }
     }
